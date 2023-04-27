@@ -47,6 +47,7 @@ The redux library introduces a lot of new terminology
 2. Learn **Redux Toolkit**, the new and recommended way to use Redux
 3. Integration with React with the **React-Redux** Library
 4. **RTK Query** extension, a query library for redux
+5. Usage with TypeScript
 
 
 
@@ -787,3 +788,261 @@ store.dispatch(fetchPostById(3))
 
 
 ```
+## Integration with React w/ React-Redux Library
+
+In this series, now that we have a handle on the basics of redux, we're gonna learn the react-redux library as well as good practices for folder structure with redux and keep the actual reducers and slices pretty simple
+
+
+### Step 1: Initiate a new React-App with Vite and install required packages
+
+```bash
+# Set Up React App
+npm create vite@latest react-redux-tut
+cd react-redux-tut
+npm install
+
+# Install redux packages + axios
+
+npm i @reduxjs/toolkit react-redux axios
+
+```
+
+
+### Step 2: Create a Count Slice
+
+In src/, Create a folder called features/count/ and create a file called count.js
+
+count.js
+
+```js
+import { createSlice } from '@reduxjs/toolkit'
+
+const countSlice = createSlice({
+        name: 'count',
+        initialState: {
+                value: 0
+            },
+        reducers: {
+                increment: (state, action) => {
+                        state.value++
+                    },
+                decerment: (state, action) => {
+                        state.value--
+                    }
+            }
+    })
+
+
+export const {increment, decrement} = countSlice.actions
+
+export const countReducer = countSlice.reducer
+
+```
+
+
+### Step 3: Configure the Store
+
+in src/ create a folder called app/ and a file called store.js
+
+
+store.js
+
+```js
+import { configureStore } from '@reduxjs/toolkit'
+import { countReducer } from '../features/count/count'
+
+export const store = configureStore({
+        reducers: {
+                count: countReducer
+            }
+    })
+
+
+
+```
+
+
+### Step 4: Wrap Application in Provider Component from React-Redux
+
+Here we import a React Component from the react-redux library called "Provider", we pass our store config as a prop into "store"
+
+All children of the provider will have access to read from the store
+```js
+import { Provider } from 'react-redux'
+import { store } from './app/store'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import "./index.css"
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+<React.StrictMode>
+    <Provider store={store}>
+        <App />
+    </Provider>
+</React.StrictMode>,
+)
+
+```
+
+
+### Step 5: useSelector Hook
+
+To read from our store state we just need to use the useSelector hook given to use by the React-Redux library
+
+The hook takes a callback function which returns to use the Root State of our store, we just need to pick which state we want specifically
+
+App.jsx
+
+```jsx
+import { useSelector } from 'react-redux'
+
+export default function App() {
+const count = useSelector(state => state.count)
+
+return (
+<>
+    <div>
+        {count.value}
+    </div>
+</>
+);
+}
+
+
+
+```
+### Step 6: useDispatch Hook
+
+To dispatch actions, we just need to use the useDispatch hook
+
+
+App.jsx
+
+```jsx
+import { useSelector, useDispatch } from 'react-redux'
+
+export default function App() {
+const count = useSelector(state => state.count)
+const dispatch = useDispatch()
+return (
+<>
+    <div>
+        {count.value}
+        <button onClick={() => dispatch(increment())}>+</button>
+        <button onClick={() => dispatch(decrement())}>-</button>
+    </div>
+</>
+);
+}
+
+
+
+```
+
+
+## TypeScript Usage
+
+
+
+### Define Root State and Dispatch Types
+
+Using configureStore should not need any additional typings. You will, however, want to extract the RootState type and the Dispatch type so that they can be referenced as needed. Inferring these types from the store itself means that they correctly update as you add more state slices or modify middleware settings.
+
+Since those are types, it's safe to export them directly from your store setup file such as app/store.ts and import them directly into other files.
+app/store.ts
+
+```ts
+import { configureStore } from '@reduxjs/toolkit'
+// ...
+
+export const store = configureStore({
+  reducer: {
+    posts: postsReducer,
+    comments: commentsReducer,
+    users: usersReducer,
+  },
+})
+
+// Infer the `RootState` and `AppDispatch` types from the store itself
+export type RootState = ReturnType<typeof store.getState>
+// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
+export type AppDispatch = typeof store.dispatch
+
+```
+
+
+
+### Define Slice State and Action Types
+
+Each slice file should define a type for its initial state value, so that createSlice can correctly infer the type of state in each case reducer.
+
+All generated actions should be defined using the PayloadAction<T> type from Redux Toolkit, which takes the type of the action.payload field as its generic argument.
+
+You can safely import the RootState type from the store file here. It's a circular import, but the TypeScript compiler can correctly handle that for types. This may be needed for use cases like writing selector functions.
+features/counter/counterSlice.ts
+
+```ts
+import { createSlice } from '@reduxjs/toolkit'
+import type { PayloadAction } from '@reduxjs/toolkit'
+import type { RootState } from '../../app/store'
+
+// Define a type for the slice state
+interface CounterState {
+  value: number
+}
+
+// Define the initial state using that type
+const initialState: CounterState = {
+  value: 0,
+}
+
+export const counterSlice = createSlice({
+  name: 'counter',
+  // `createSlice` will infer the state type from the `initialState` argument
+  initialState,
+  reducers: {
+    increment: (state) => {
+      state.value += 1
+    },
+    decrement: (state) => {
+      state.value -= 1
+    },
+    // Use the PayloadAction type to declare the contents of `action.payload`
+    incrementByAmount: (state, action: PayloadAction<number>) => {
+      state.value += action.payload
+    },
+  },
+})
+
+export const { increment, decrement, incrementByAmount } = counterSlice.actions
+
+// Other code such as selectors can use the imported `RootState` type
+export const selectCount = (state: RootState) => state.counter.value
+
+export default counterSlice.reducer
+```
+
+
+
+### Define Typed Hooks
+
+While it's possible to import the RootState and AppDispatch types into each component, it's better to create typed versions of the useDispatch and useSelector hooks for usage in your application. This is important for a couple reasons:
+
+For useSelector, it saves you the need to type (state: RootState) every time
+For useDispatch, the default Dispatch type does not know about thunks. In order to correctly dispatch thunks, you need to use the specific customized AppDispatch type from the store that includes the thunk middleware types, and use that with useDispatch. Adding a pre-typed useDispatch hook keeps you from forgetting to import AppDispatch where it's needed.
+
+Since these are actual variables, not types, it's important to define them in a separate file such as app/hooks.ts, not the store setup file. This allows you to import them into any component file that needs to use the hooks, and avoids potential circular import dependency issues.
+app/hooks.ts
+
+```ts
+import { useDispatch, useSelector } from 'react-redux'
+import type { TypedUseSelectorHook } from 'react-redux'
+import type { RootState, AppDispatch } from './store'
+
+// Use throughout your app instead of plain `useDispatch` and `useSelector`
+export const useAppDispatch: () => AppDispatch = useDispatch
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector
+```
+
+## RTK Query
