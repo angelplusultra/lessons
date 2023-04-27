@@ -619,3 +619,171 @@ store.dispatch(editTodo({ id: 4, body: 'fuckkkkkk' }))
 ```
 
 
+### Step 5: Extra Reducers
+
+The extraReducers property is needed is you need the reducer to react to actions that arent generated directly from the slice. For example, lets say we have two slices, one for number of cakes in stock and the other for ice cream. Let's say we wanted whenever we sold a cake for us to also give away an ice cream, we can accomplish this with extraReducers
+
+
+
+```js
+
+const { configureStore, createSlice } = require('@reduxjs/toolkit')
+
+const cakeSlice = createSlice({
+  name: 'cake',
+  initialState: {
+    cakes: 5
+  },
+  reducers: {
+    sellCake: (state) => {
+      state.cakes--
+    }
+  }
+})
+
+const iceCreamSlice = createSlice({
+  name: 'cake',
+  initialState: {
+    iceCreams: 5
+  },
+  reducers: {
+    sellIceCream: (state) => {
+      state.cakes--
+    }
+  },
+  extraReducers: (builder) => {
+    builder.addCase(cakeSlice.actions.sellCake, (state, action) => {
+      state.iceCreams--
+    })
+  }
+})
+const store = configureStore({
+  reducer: {
+    cake: cakeSlice.reducer,
+    iceCream: iceCreamSlice.reducer
+  }
+})
+
+store.subscribe(_ => console.log(store.getState()))
+
+
+store.dispatch(cakeSlice.actions.sellCake())
+store.dispatch(cakeSlice.actions.sellCake())
+store.dispatch(cakeSlice.actions.sellCake())
+
+
+```
+
+
+### Step 6: Async Thunks & createAsyncThunk
+
+#### What is a "thunk"?
+
+The word "thunk" is a programming term that means "a piece of code that does some delayed work". Rather than execute some logic now, we can write a function body or code that can be used to perform the work later.
+
+For Redux specifically, "thunks" are a pattern of writing functions with logic inside that can interact with a Redux store's dispatch and getState methods.
+
+#### What is createAsyncThunk
+
+createAsyncThunk is a function that accepts a Redux action type string and a callback function that should return a promise. It generates promise lifecycle action types based on the action type prefix that you pass in, and returns a thunk action creator that will run the promise callback and dispatch the lifecycle actions based on the returned promise.
+
+This abstracts the standard recommended approach for handling async request lifecycles.
+
+It does not generate any reducer functions, since it does not know what data you're fetching, how you want to track loading state, or how the data you return needs to be processed. You should write your own reducer logic that handles these actions, with whatever loading state and processing logic is appropriate for your own app.
+
+
+
+```js
+
+const fetchPosts = createAsyncThunk('posts/fetchposts', async () => {
+  const res = await axios.get('https://jsonplaceholder.typicode.com/posts')
+
+  const posts = res.data
+
+  return posts.slice(0, 5).map(post => ({ title: post.title }))
+
+})
+
+const fetchPostById = createAsyncThunk('posts/fetchPostById', async (id) => {
+  const res = await axios.get('https://jsonplaceholder.typicode.com/posts/' + id)
+
+  const post = res.data
+
+  return post
+
+})
+const postsSlice = createSlice({
+  name: 'posts',
+  initialState: {
+    isLoading: false,
+    isSuccess: false,
+    isError: false,
+    data: [],
+    message: ''
+  },
+  reducers: {
+    reset: (state) => {
+      state.isLoading = false,
+        state.isSuccess = false,
+        state.data = [],
+        state.message = '',
+        state.isError = false
+    }
+  },
+  extraReducers: (builder) => {
+    builder.addCase(fetchPosts.pending, fetchPostById.pending, (state) => {
+      state.isLoading = true
+      state.isSuccess = false
+      state.isError = false
+
+
+    })
+    builder.addCase(fetchPosts.fulfilled, (state, action) => {
+      state.isLoading = false
+      state.isSuccess = true
+      state.isError = false
+      state.data = action.payload
+
+    })
+    builder.addCase(fetchPosts.rejected, (state, action) => {
+      console.log(action)
+      state.isLoading = false
+      state.isSuccess = false
+      state.isError = true
+      state.message = action.error.message
+    })
+    builder.addCase(fetchPostById.pending, (state, action) => {
+      state.isLoading = true
+      state.isError = false
+      state.isSuccess = false
+    })
+    builder.addCase(fetchPostById.rejected, (state, action) => {
+      state.isLoading = false
+      state.isError = true
+      state.isSuccess = false
+      state.message = action.error.message
+    })
+    builder.addCase(fetchPostById.fulfilled, (state, action) => {
+      state.isLoading = false
+      state.isError = false
+      state.isSuccess = true
+      state.message = 'Single Post Retrieved',
+        state.data = action.payload
+    })
+  }
+})
+const store = configureStore({
+  reducer: {
+    posts: postsSlice.reducer
+  }
+})
+
+store.subscribe(_ => console.log(store.getState().posts))
+
+
+store.dispatch(fetchPostById(3))
+
+
+
+
+```
