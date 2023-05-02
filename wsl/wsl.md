@@ -68,6 +68,8 @@ Such as:
 - mv
 - sudo
 - which
+- cat
+- echo
 
 
 
@@ -102,17 +104,32 @@ explorer.exe .
 
 ```
 
-### Step 5: Dot Files
+### Step 5: Dot Files and RC Files
 
-Dot files are basically "secret" files that are publically displayed without a special command
+Dot files are  "secret" files/folders that can only be revealed with a special command
 
-You might be familiar with dot files if you have used .gitignore or .env files
+They are called dot files because the name of the files/folders are prefixed by a .
 
-We can reveal all files inclduing our secret ones with
+Dot files are typicaly related to containing configuration code for a specific program
+
+Some common examples:
+
+- .gitignore
+- .bashrc
+- .vimrc
+- .config
+
+We can pass the "all" flag in our ls command to reveal all files inclduing our secret ones:
 
 ```bash
 ls -a
 ```
+
+You should see a file by the name of __.bashrc__, it is an RC File.
+
+RC Files also known as Run Command files ar basically scripts that execute when a program boots. Usually, developers can modify the contents of a RC file to customize the behavior of a program at startup.
+
+Later we'll be coming back to the .bashrc to do some custom scripting.
 
 
 ### Step 6: Vim & Nano
